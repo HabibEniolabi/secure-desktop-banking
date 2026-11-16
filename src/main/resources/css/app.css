@@ -1,0 +1,14 @@
+* { -fx-font-family: "System"; }
+.app-background { -fx-background-color: #edf3f0; }
+.form-card {
+    -fx-background-color: white;
+    -fx-background-radius: 18;
+    -fx-padding: 34;
+    -fx-effect: dropshadow(gaussian, rgba(25,50,43,.10), 24, 0, 0, 6);
+}
+.page-title { -fx-font-size: 29px; -fx-font-weight: bold; -fx-text-fill: #123d2c; }
+.subtle { -fx-text-fill: #697b74; -fx-font-size: 13px; }
+.error { -fx-text-fill: #b9332a; }
+.text-field, .password-field { -fx-padding: 10; -fx-background-radius: 8; -fx-border-radius: 8; }
+.button { -fx-cursor: hand; -fx-padding: 10 20; -fx-background-radius: 8; }
+.button.primary { -fx-background-color: #126b49; -fx-text-fill: white; -fx-font-weight: bold; }
