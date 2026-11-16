@@ -13,4 +13,9 @@ public final class AuditService {
             .append("employeeId", employeeId == null ? "UNKNOWN" : employeeId)
             .append("createdAt", new Date()));
     }
+    public void employeeChange(String actorId, String event, String targetId) {
+        database.getCollection("audit_logs").insertOne(new Document("event", event)
+            .append("employeeId", actorId).append("targetEmployeeId", targetId)
+            .append("createdAt", new Date()));
+    }
 }
