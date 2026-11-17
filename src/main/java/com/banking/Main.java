@@ -9,6 +9,7 @@ import com.banking.services.AuthService;
 import com.banking.services.EmployeeManagementService;
 import com.banking.services.EmployeeManagementService.EmployeeSummary;
 import com.banking.ui.CustomerAccountView;
+import com.banking.ui.TransactionView;
 import com.banking.models.Role;
 import com.banking.security.Authorization;
 import com.banking.security.Permission;
@@ -108,7 +109,7 @@ public final class Main extends Application {
         title.getStyleClass().add("page-title");
         Label role = new Label("Signed in as " + employee.role().name().replace('_', ' '));
         role.getStyleClass().add("subtle");
-        Label content = new Label("Use the modules below to manage employees, customers and bank accounts. Financial transactions are added in subsequent PRs.");
+        Label content = new Label("Use the modules below to manage employees, customers, accounts and financial transactions.");
         content.setWrapText(true);
         content.setMaxWidth(620);
         Button logout = new Button("Log out");
@@ -124,7 +125,15 @@ public final class Main extends Application {
         customerAccountsButton.setVisible(Authorization.can(employee.role(), Permission.VIEW_CUSTOMERS));
         customerAccountsButton.setManaged(customerAccountsButton.isVisible());
         customerAccountsButton.setOnAction(e -> showCustomerAccounts(employee));
-        VBox page = new VBox(18, top, role, new Separator(), content, employeesButton, customerAccountsButton);
+        Button transactionsButton = new Button("Financial transactions");
+        transactionsButton.setVisible(Authorization.can(employee.role(), Permission.VIEW_TRANSACTIONS)
+            || Authorization.can(employee.role(), Permission.CREDIT)
+            || Authorization.can(employee.role(), Permission.DEBIT)
+            || Authorization.can(employee.role(), Permission.TRANSFER));
+        transactionsButton.setManaged(transactionsButton.isVisible());
+        transactionsButton.setOnAction(e -> showTransactions(employee));
+        VBox page = new VBox(18, top, role, new Separator(), content, employeesButton,
+            customerAccountsButton, transactionsButton);
         page.setPadding(new Insets(34));
         page.getStyleClass().add("form-card");
         BorderPane root = new BorderPane(page);
@@ -135,6 +144,10 @@ public final class Main extends Application {
 
     private void showCustomerAccounts(AuthenticatedEmployee actor) {
         setScene(new CustomerAccountView(mongo.database(), actor, () -> showDashboard(actor)).build());
+    }
+
+    private void showTransactions(AuthenticatedEmployee actor) {
+        setScene(new TransactionView(mongo.client(), mongo.database(), actor, () -> showDashboard(actor)).build());
     }
 
     private void showEmployeeManagement(AuthenticatedEmployee actor) {

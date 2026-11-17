@@ -42,6 +42,8 @@ public final class MongoContext implements AutoCloseable {
         unique("email_notifications", "notificationId");
         database.getCollection("transactions").createIndex(Indexes.ascending("accountNumber", "createdAt"));
         database.getCollection("transactions").createIndex(Indexes.ascending("createdAt"));
+        database.getCollection("transactions").createIndex(Indexes.ascending("sourceAccountNumber", "createdAt"));
+        database.getCollection("transactions").createIndex(Indexes.ascending("destinationAccountNumber", "createdAt"));
         database.getCollection("ledger_entries").createIndex(Indexes.ascending("reference", "createdAt"));
         database.getCollection("support_tickets").createIndex(Indexes.ascending("customerId", "status"));
         database.getCollection("ticket_messages").createIndex(Indexes.ascending("ticketNumber", "createdAt"));

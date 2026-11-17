@@ -2,7 +2,7 @@
 
 **Educational simulation only — fictional customers and simulated funds.** Built against the supplied 21-page assignment (deadline **17 November 2026**).
 
-## PR #1 — runnable foundation (this branch)
+## Implemented modules: Foundation, employees, customers/accounts, financial transactions
 
 - Java 21 + JavaFX desktop window; asynchronous employee login screen and basic authenticated dashboard.
 - Maven build; MongoDB Atlas sync Java driver; reusable client; index initializer for the ten required collections.
@@ -11,7 +11,7 @@
 - Employee login audit records (success/failure), input validation and exact money parsing utilities.
 - JUnit tests, CI workflow, .gitignore, architecture/PR plan, and strict secret handling.
 
-**Not implemented in PR #1:** employee UI management, customers, accounts, transactions, ledger operations, transfers, approvals, customer care, SMTP, reports. Do **not** mark the assignment complete based on this foundation.
+**Still pending:** supervisor approvals, customer care, actual Gmail SMTP notifications, operational dashboards/reports and a full end-to-end test run. Do **not** mark the assignment complete on financial transactions alone. See `docs/PR4_DESCRIPTION.md`.
 
 ## Prerequisites
 
@@ -35,6 +35,13 @@ mvn javafx:run
 The UI launches even without Atlas configuration, but login needs `MONGODB_URI` and seeded admin user. **Do not check `.env` into Git**. On Windows PowerShell, set the same keys using `$env:KEY='value'` rather than `source`.
 
 First-run seed exits if an admin with the seed email already exists. Use only the controlled test environment and a unique strong password. It does not overwrite existing credentials.
+
+## Financial transactions (PR #4)
+
+- The Financial transactions screen posts credit, debit and transfer requests asynchronously using MongoDB transactions.
+- The **request ID** remains unchanged if a database failure occurs. Keep it and retry with that same UUID; changing IDs can duplicate a financial operation.
+- Restricted transactions above `BANKING_TELLER_LIMIT_NGN` (default ₦1,000,000.00) are blocked until supervisor approval is implemented.
+- Transactions have ledger entries and audit records. Actual email delivery comes in a later PR.
 
 ## Design decisions
 
