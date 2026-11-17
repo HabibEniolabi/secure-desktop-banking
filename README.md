@@ -71,3 +71,10 @@ Use two distinct seeded employees for demonstration: a `BANK_TELLER` and `SUPERV
 Use **Customer care & complaints** from the dashboard as a Customer Care Officer or Supervisor.
 Ticket status changes write notification outbox records but do not yet send emails.
 A MongoDB replica set/Atlas cluster supporting multi-document transactions is required.
+
+## PR #7 — Gmail SMTP notifications
+
+- Credit, debit, transfer and new-account operations write notification outbox records in the same MongoDB transaction as the financial/account change; Customer Care already queues ticket messages transactionally.
+- After login, a background worker delivers pending emails with Gmail STARTTLS, retry attempts and failure statuses without blocking JavaFX or undoing completed financial operations.
+- Set `SMTP_USERNAME` and `SMTP_APP_PASSWORD` in your **local** `.env` and load it into the shell before `mvn javafx:run`. A Gmail App Password (where available) is required; do not use your ordinary Gmail password.
+- Messages include references, transaction amounts, UTC dates and only the final four account digits. A Gmail acceptance/Atlas status-write race can cause a duplicate delivery; see `docs/PR7_DESCRIPTION.md` for testing and limitations.

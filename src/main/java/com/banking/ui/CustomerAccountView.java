@@ -13,6 +13,7 @@ import com.banking.services.AccountService;
 import com.banking.services.AuditService;
 import com.banking.services.CustomerService;
 import com.banking.services.EmployeeAccess;
+import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.FXCollections;
@@ -46,14 +47,14 @@ public final class CustomerAccountView {
     private final Label accountHolder = new Label("Select an account to view the holder.");
     private final ComboBox<AccountStatus> status = new ComboBox<>(FXCollections.observableArrayList(AccountStatus.values()));
 
-    public CustomerAccountView(MongoDatabase database, AuthenticatedEmployee actor, Runnable back) {
+    public CustomerAccountView(MongoClient client, MongoDatabase database, AuthenticatedEmployee actor, Runnable back) {
         this.actor = actor;
         this.back = back;
         var access = new EmployeeAccess(new EmployeeRepository(database));
         var audit = new AuditService(database);
         var customersRepo = new CustomerRepository(database);
         customerService = new CustomerService(customersRepo, access, audit);
-        accountService = new AccountService(new AccountRepository(database), customersRepo, access, audit);
+        accountService = new AccountService(new AccountRepository(client, database), customersRepo, access, audit);
     }
 
     public Parent build() {
