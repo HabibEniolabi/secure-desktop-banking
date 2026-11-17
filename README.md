@@ -65,3 +65,9 @@ Run `mvn clean verify` (unit tests, compile and package) and `mvn javafx:run` lo
 Amounts exceeding `BANKING_TELLER_LIMIT_NGN` (default `1000000.00`) are queued for active supervisors rather than executed. Approval performs the financial update and approval decision in one MongoDB transaction; a failure leaves the approval pending. A rejected request never affects balances.
 
 Use two distinct seeded employees for demonstration: a `BANK_TELLER` and `SUPERVISOR`. Email notifications and complaints are separate upcoming modules.
+
+## PR #6 — Customer Care
+
+Use **Customer care & complaints** from the dashboard as a Customer Care Officer or Supervisor.
+Ticket status changes write notification outbox records but do not yet send emails.
+A MongoDB replica set/Atlas cluster supporting multi-document transactions is required.

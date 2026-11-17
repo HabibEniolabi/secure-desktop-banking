@@ -1,0 +1,6 @@
+package com.banking.models;
+
+public enum TicketCategory {
+    FAILED_TRANSACTION, INCORRECT_DEBIT, UNAUTHORIZED_TRANSACTION,
+    ACCOUNT_RESTRICTION, GENERAL_INQUIRY
+}
