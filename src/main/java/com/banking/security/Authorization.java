@@ -12,11 +12,12 @@ public final class Authorization {
         RULES.put(Role.ADMINISTRATOR, EnumSet.of(
             Permission.MANAGE_EMPLOYEES, Permission.VIEW_REPORTS, Permission.VIEW_AUDIT_LOGS));
         RULES.put(Role.BANK_TELLER, EnumSet.of(
-            Permission.MANAGE_CUSTOMERS, Permission.CREATE_ACCOUNTS,
+            Permission.MANAGE_CUSTOMERS, Permission.VIEW_CUSTOMERS, Permission.CREATE_ACCOUNTS, Permission.VIEW_ACCOUNTS,
             Permission.CREDIT, Permission.DEBIT, Permission.TRANSFER, Permission.VIEW_TRANSACTIONS));
         RULES.put(Role.CUSTOMER_CARE_OFFICER, EnumSet.of(
-            Permission.VIEW_TRANSACTIONS, Permission.MANAGE_TICKETS));
+            Permission.VIEW_CUSTOMERS, Permission.VIEW_ACCOUNTS, Permission.VIEW_TRANSACTIONS, Permission.MANAGE_TICKETS));
         RULES.put(Role.SUPERVISOR, EnumSet.of(
+            Permission.VIEW_CUSTOMERS, Permission.VIEW_ACCOUNTS, Permission.MANAGE_ACCOUNT_STATUS,
             Permission.VIEW_TRANSACTIONS, Permission.APPROVE_RESTRICTED_TRANSACTIONS,
             Permission.MANAGE_TICKETS, Permission.VIEW_REPORTS));
     }

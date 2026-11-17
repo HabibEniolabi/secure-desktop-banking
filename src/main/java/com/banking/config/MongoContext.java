@@ -33,6 +33,8 @@ public final class MongoContext implements AutoCloseable {
         unique("customers", "customerId");
         unique("customers", "email");
         unique("accounts", "accountNumber");
+        database.getCollection("accounts").createIndex(Indexes.ascending("customerId", "accountNumber"));
+        database.getCollection("customers").createIndex(Indexes.ascending("fullName", "customerId"));
         unique("transactions", "reference");
         unique("transactions", "requestId");
         unique("support_tickets", "ticketNumber");

@@ -6,6 +6,14 @@ import com.banking.models.AuthenticatedEmployee;
 import com.banking.repositories.EmployeeRepository;
 import com.banking.services.AuditService;
 import com.banking.services.AuthService;
+import com.banking.services.EmployeeManagementService;
+import com.banking.services.EmployeeManagementService.EmployeeSummary;
+import com.banking.ui.CustomerAccountView;
+import com.banking.models.Role;
+import com.banking.security.Authorization;
+import com.banking.security.Permission;
+import javafx.collections.FXCollections;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.application.Application;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
@@ -100,7 +108,7 @@ public final class Main extends Application {
         title.getStyleClass().add("page-title");
         Label role = new Label("Signed in as " + employee.role().name().replace('_', ' '));
         role.getStyleClass().add("subtle");
-        Label content = new Label("Authentication is working. Customer, account and banking screens are added in subsequent PRs.");
+        Label content = new Label("Use the modules below to manage employees, customers and bank accounts. Financial transactions are added in subsequent PRs.");
         content.setWrapText(true);
         content.setMaxWidth(620);
         Button logout = new Button("Log out");
@@ -108,13 +116,129 @@ public final class Main extends Application {
         HBox top = new HBox(16, title, new Region(), logout);
         HBox.setHgrow(top.getChildren().get(1), Priority.ALWAYS);
         top.setAlignment(Pos.CENTER_LEFT);
-        VBox page = new VBox(18, top, role, new Separator(), content);
+        Button employeesButton = new Button("Manage employees");
+        employeesButton.setVisible(Authorization.can(employee.role(), Permission.MANAGE_EMPLOYEES));
+        employeesButton.setManaged(employeesButton.isVisible());
+        employeesButton.setOnAction(e -> showEmployeeManagement(employee));
+        Button customerAccountsButton = new Button("Customers & accounts");
+        customerAccountsButton.setVisible(Authorization.can(employee.role(), Permission.VIEW_CUSTOMERS));
+        customerAccountsButton.setManaged(customerAccountsButton.isVisible());
+        customerAccountsButton.setOnAction(e -> showCustomerAccounts(employee));
+        VBox page = new VBox(18, top, role, new Separator(), content, employeesButton, customerAccountsButton);
         page.setPadding(new Insets(34));
         page.getStyleClass().add("form-card");
         BorderPane root = new BorderPane(page);
         root.getStyleClass().add("app-background");
         root.setPadding(new Insets(26));
         setScene(root);
+    }
+
+    private void showCustomerAccounts(AuthenticatedEmployee actor) {
+        setScene(new CustomerAccountView(mongo.database(), actor, () -> showDashboard(actor)).build());
+    }
+
+    private void showEmployeeManagement(AuthenticatedEmployee actor) {
+        // Services enforce permissions again using the current database role.
+        Label heading = new Label("Employee management");
+        heading.getStyleClass().add("page-title");
+        Label feedback = new Label();
+        feedback.setWrapText(true);
+        feedback.getStyleClass().add("subtle");
+        TextField query = new TextField();
+        query.setPromptText("Search by employee name, email, username or ID");
+        Button searchButton = new Button("Search");
+        Button back = new Button("Back to dashboard");
+        back.setOnAction(e -> showDashboard(actor));
+
+        TableView<EmployeeSummary> table = new TableView<>();
+        TableColumn<EmployeeSummary, String> name = new TableColumn<>("Name");
+        name.setCellValueFactory(v -> new ReadOnlyStringWrapper(v.getValue().fullName()));
+        TableColumn<EmployeeSummary, String> email = new TableColumn<>("Email");
+        email.setCellValueFactory(v -> new ReadOnlyStringWrapper(v.getValue().email()));
+        TableColumn<EmployeeSummary, String> role = new TableColumn<>("Role");
+        role.setCellValueFactory(v -> new ReadOnlyStringWrapper(v.getValue().role().name()));
+        TableColumn<EmployeeSummary, String> status = new TableColumn<>("Status");
+        status.setCellValueFactory(v -> new ReadOnlyStringWrapper(v.getValue().active() ? "Active" : "Inactive"));
+        table.getColumns().addAll(name, email, role, status);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        TextField fullName = new TextField(); fullName.setPromptText("Full name");
+        TextField employeeEmail = new TextField(); employeeEmail.setPromptText("Email");
+        TextField username = new TextField(); username.setPromptText("Username (for new employees)");
+        PasswordField password = new PasswordField(); password.setPromptText("Password (new employees, 12+ characters)");
+        ComboBox<Role> roleSelection = new ComboBox<>(FXCollections.observableArrayList(Role.values()));
+        roleSelection.setValue(Role.BANK_TELLER);
+        CheckBox enabled = new CheckBox("Active"); enabled.setSelected(true);
+        Button create = new Button("Create employee"); create.getStyleClass().add("primary");
+        Button update = new Button("Save selected employee");
+        Label selection = new Label("Select an employee to edit their name, email, role or status.");
+        table.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
+            if (selected != null) {
+                fullName.setText(selected.fullName()); employeeEmail.setText(selected.email());
+                username.setText(selected.username()); roleSelection.setValue(selected.role());
+                enabled.setSelected(selected.active()); password.clear();
+                selection.setText("Editing: " + selected.id());
+            }
+        });
+
+        Runnable load = () -> {
+            String searchText = query.getText();
+            runEmployeeTask(() -> employeeManagement().search(actor, searchText, 0, 50),
+                rows -> { table.setItems(FXCollections.observableArrayList(rows));
+                    feedback.setText(rows.size() + " employee(s) shown (first 50)."); }, feedback);
+        };
+        searchButton.setOnAction(e -> load.run());
+        create.setOnAction(e -> {
+            String nameValue = fullName.getText(), emailValue = employeeEmail.getText();
+            String usernameValue = username.getText(), passwordValue = password.getText();
+            Role selectedRole = roleSelection.getValue();
+            runEmployeeTask(() -> employeeManagement().create(actor, nameValue,
+                    emailValue, usernameValue, passwordValue, selectedRole),
+                result -> { password.clear(); feedback.setText("Created employee " + result.fullName()); load.run(); },
+                feedback);
+        });
+        update.setOnAction(e -> {
+            EmployeeSummary selected = table.getSelectionModel().getSelectedItem();
+            if (selected == null) { feedback.setText("Select an employee first."); return; }
+            String nameValue = fullName.getText(), emailValue = employeeEmail.getText();
+            Role selectedRole = roleSelection.getValue();
+            boolean isActive = enabled.isSelected();
+            runEmployeeTask(() -> employeeManagement().update(actor, selected.id(), nameValue,
+                    emailValue, selectedRole, isActive),
+                result -> { feedback.setText("Employee saved."); load.run(); }, feedback);
+        });
+        HBox actions = new HBox(10, searchButton, back); actions.setAlignment(Pos.CENTER_LEFT);
+        HBox formActions = new HBox(10, create, update); formActions.setAlignment(Pos.CENTER_LEFT);
+        VBox form = new VBox(9, selection, fullName, employeeEmail, username, password,
+            roleSelection, enabled, formActions);
+        VBox page = new VBox(14, heading, query, actions, table, form, feedback);
+        page.setPadding(new Insets(28)); page.getStyleClass().add("form-card");
+        ScrollPane scroll = new ScrollPane(page); scroll.setFitToWidth(true);
+        BorderPane root = new BorderPane(scroll); root.setPadding(new Insets(18));
+        root.getStyleClass().add("app-background");
+        setScene(root);
+        load.run();
+    }
+
+    private EmployeeManagementService employeeManagement() {
+        return new EmployeeManagementService(new EmployeeRepository(mongo.database()),
+            new AuditService(mongo.database()));
+    }
+
+    private <T> void runEmployeeTask(java.util.concurrent.Callable<T> action,
+                                     java.util.function.Consumer<T> onSuccess, Label status) {
+        status.setText("Working...");
+        Task<T> task = new Task<>() {
+            @Override protected T call() throws Exception { return action.call(); }
+        };
+        task.setOnSucceeded(e -> onSuccess.accept(task.getValue()));
+        task.setOnFailed(e -> {
+            Throwable error = task.getException();
+            status.setText(error instanceof IllegalArgumentException || error instanceof SecurityException
+                ? error.getMessage() : "Unable to complete request. Check database connectivity.");
+        });
+        Thread thread = new Thread(task, "employee-management-worker");
+        thread.setDaemon(true); thread.start();
     }
 
     private void setScene(javafx.scene.Parent root) {
