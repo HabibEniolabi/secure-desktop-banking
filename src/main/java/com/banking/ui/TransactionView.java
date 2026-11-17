@@ -122,10 +122,18 @@ public final class TransactionView {
                 return;
             }
             submit.setDisable(true);
-            runAsync(() -> service.post(actor, request), result -> {
-                receipt.setText(formatReceipt(result));
-                feedback.setText("Committed. Keep the transaction reference for the customer.");
-                requestId.setText(UUID.randomUUID().toString()); // Only rotate after confirmed completion.
+            runAsync(() -> service.submit(actor, request), result -> {
+                if (result.pendingApproval()) {
+                    receipt.setText("PENDING SUPERVISOR APPROVAL\n" +
+                        "Approval ID: " + result.approvalId() + "\n" +
+                        "Request ID: " + request.requestId() + "\n" +
+                        "No funds have moved. A supervisor must approve this request.");
+                    feedback.setText("Approval request recorded. No balance changed.");
+                } else {
+                    receipt.setText(formatReceipt(result.receipt()));
+                    feedback.setText("Committed. Keep the transaction reference for the customer.");
+                }
+                requestId.setText(UUID.randomUUID().toString()); // Rotate only after a confirmed result.
                 submit.setDisable(false);
             }, error -> {
                 // Preserve requestId even on unknown network outcome. Safe retry is possible.
@@ -135,8 +143,8 @@ public final class TransactionView {
         });
         receipt.setEditable(false);
         receipt.setPrefRowCount(7);
-        Label warning = new Label("Simulated funds only. Restricted amounts require supervisor approval; " +
-            "no funds move until the approval workflow is added.");
+        Label warning = new Label("Simulated funds only. Restricted amounts become pending approvals; " +
+            "no funds move before a supervisor approves and execution commits.");
         warning.setWrapText(true);
         VBox contents = new VBox(12, new Label("Operation"), operation,
             new Label("Source account"), source,
