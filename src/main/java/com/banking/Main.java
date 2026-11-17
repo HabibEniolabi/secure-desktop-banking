@@ -10,6 +10,7 @@ import com.banking.services.EmployeeManagementService;
 import com.banking.services.EmployeeManagementService.EmployeeSummary;
 import com.banking.ui.CustomerAccountView;
 import com.banking.ui.TransactionView;
+import com.banking.ui.ApprovalView;
 import com.banking.models.Role;
 import com.banking.security.Authorization;
 import com.banking.security.Permission;
@@ -132,8 +133,12 @@ public final class Main extends Application {
             || Authorization.can(employee.role(), Permission.TRANSFER));
         transactionsButton.setManaged(transactionsButton.isVisible());
         transactionsButton.setOnAction(e -> showTransactions(employee));
+        Button approvalsButton = new Button("Supervisor approvals");
+        approvalsButton.setVisible(Authorization.can(employee.role(), Permission.APPROVE_RESTRICTED_TRANSACTIONS));
+        approvalsButton.setManaged(approvalsButton.isVisible());
+        approvalsButton.setOnAction(e -> showApprovals(employee));
         VBox page = new VBox(18, top, role, new Separator(), content, employeesButton,
-            customerAccountsButton, transactionsButton);
+            customerAccountsButton, transactionsButton, approvalsButton);
         page.setPadding(new Insets(34));
         page.getStyleClass().add("form-card");
         BorderPane root = new BorderPane(page);
@@ -148,6 +153,11 @@ public final class Main extends Application {
 
     private void showTransactions(AuthenticatedEmployee actor) {
         setScene(new TransactionView(mongo.client(), mongo.database(), actor, () -> showDashboard(actor)).build());
+    }
+
+    private void showApprovals(AuthenticatedEmployee actor) {
+        setScene(new ApprovalView(mongo.client(), mongo.database(), actor,
+            () -> showDashboard(actor)).build());
     }
 
     private void showEmployeeManagement(AuthenticatedEmployee actor) {
