@@ -13,4 +13,18 @@ public final class AuditService {
             .append("employeeId", employeeId == null ? "UNKNOWN" : employeeId)
             .append("createdAt", new Date()));
     }
+    /** Auditable event without personal data in the log. */
+    public void activity(String actorId, String event, String targetField, String targetId) {
+        if (!java.util.Set.of("customerId", "accountNumber").contains(targetField))
+            throw new IllegalArgumentException("Unsupported audit target field.");
+        database.getCollection("audit_logs").insertOne(new Document("event", event)
+            .append("employeeId", actorId).append(targetField, targetId)
+            .append("createdAt", new Date()));
+    }
+
+    public void employeeChange(String actorId, String event, String targetId) {
+        database.getCollection("audit_logs").insertOne(new Document("event", event)
+            .append("employeeId", actorId).append("targetEmployeeId", targetId)
+            .append("createdAt", new Date()));
+    }
 }
