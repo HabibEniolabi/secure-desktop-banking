@@ -23,15 +23,15 @@ public final class AccountService {
 
     public BankAccount open(AuthenticatedEmployee actor, String customerId) {
         access.require(actor, Permission.CREATE_ACCOUNTS);
-        if (customerId == null || customerId.isBlank() || customers.findById(customerId).isEmpty())
+        if (customerId == null || customerId.isBlank())
             throw new IllegalArgumentException("Register or select a customer first.");
+        var customer = customers.findById(customerId)
+            .orElseThrow(() -> new IllegalArgumentException("Register or select a customer first."));
         for (int attempts = 0; attempts < 8; attempts++) {
             // 10-digit numerical account number; the unique MongoDB index handles rare collisions.
             String number = Long.toString(1_000_000_000L + RANDOM.nextLong(9_000_000_000L));
             try {
-                BankAccount created = accounts.create(customerId, number);
-                audit.activity(actor.id(), "ACCOUNT_CREATED", "accountNumber", created.accountNumber());
-                return created;
+                return accounts.create(customerId, number, customer.email(), actor.id());
             } catch (AccountRepository.AccountNumberCollisionException ignored) {
                 // Generate another number instead of showing the user a database duplicate-key error.
             }

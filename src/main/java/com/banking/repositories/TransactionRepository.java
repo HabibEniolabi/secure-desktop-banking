@@ -1,6 +1,7 @@
 package com.banking.repositories;
 
 import com.banking.models.AccountStatus;
+import com.banking.notifications.NotificationOutbox;
 import com.banking.models.ApprovalTicket;
 import com.banking.models.Role;
 import com.banking.security.Authorization;
@@ -56,6 +57,8 @@ public final class TransactionRepository {
     private final MongoCollection<Document> audit;
     private final MongoCollection<Document> approvals;
     private final MongoCollection<Document> employees;
+    private final MongoCollection<Document> customers;
+    private final MongoCollection<Document> notifications;
 
     public TransactionRepository(MongoClient client, MongoDatabase database) {
         this.client = Objects.requireNonNull(client);
@@ -66,6 +69,8 @@ public final class TransactionRepository {
         this.audit = database.getCollection("audit_logs");
         this.approvals = database.getCollection("approvals");
         this.employees = database.getCollection("employees");
+        this.customers = database.getCollection("customers");
+        this.notifications = database.getCollection("email_notifications");
     }
 
     public TransactionReceipt post(String employeeId, BankingRequest request, long limitMinor) {
@@ -169,8 +174,27 @@ public final class TransactionRepository {
         audit.insertOne(session, new Document("event", "FINANCIAL_" + request.type().name())
             .append("employeeId", employeeId).append("reference", reference)
             .append("requestId", request.requestId()).append("createdAt", when));
-        // No SMTP call here: PR #7 will schedule notifications after the commit.
+        // The outbox is written in the same ACID transaction as the balances and ledger.
+        // SMTP is only attempted later by NotificationWorker, after this transaction commits.
+        if (request.sourceAccountNumber() != null) {
+            queueTransactionNotice(session, request.type() == TransactionType.DEBIT ? "DEBIT" : "TRANSFER_SENT",
+                request.sourceAccountNumber(), request.amountMinor(), reference, when);
+        }
+        if (request.destinationAccountNumber() != null) {
+            queueTransactionNotice(session, request.type() == TransactionType.CREDIT ? "CREDIT" : "TRANSFER_RECEIVED",
+                request.destinationAccountNumber(), request.amountMinor(), reference, when);
+        }
         return map(record);
+    }
+
+    private void queueTransactionNotice(ClientSession session, String event, String accountNumber,
+                                        long amountMinor, String reference, Date when) {
+        Document account = accounts.find(session, eq("accountNumber", accountNumber)).first();
+        if (account == null) throw new IllegalStateException("Account disappeared during posting.");
+        Document customer = customers.find(session, eq("customerId", account.getString("customerId"))).first();
+        if (customer == null) throw new IllegalStateException("Customer was not found for notification.");
+        notifications.insertOne(session, NotificationOutbox.financial(event, customer.getString("email"),
+            accountNumber, amountMinor, reference, when));
     }
 
     private static Document ledgerEntry(String reference, String requestId, String accountNumber,
