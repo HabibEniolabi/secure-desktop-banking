@@ -59,3 +59,9 @@ Create an **empty private repository**, upload these files on `main`, and open f
 ## Verification
 
 Run `mvn clean verify` (unit tests, compile and package) and `mvn javafx:run` locally. GitHub Actions performs a Maven verification on pushes and PRs. No live Atlas integration test runs without provided test credentials.
+
+## PR #5 — Supervisor approval workflow
+
+Amounts exceeding `BANKING_TELLER_LIMIT_NGN` (default `1000000.00`) are queued for active supervisors rather than executed. Approval performs the financial update and approval decision in one MongoDB transaction; a failure leaves the approval pending. A rejected request never affects balances.
+
+Use two distinct seeded employees for demonstration: a `BANK_TELLER` and `SUPERVISOR`. Email notifications and complaints are separate upcoming modules.

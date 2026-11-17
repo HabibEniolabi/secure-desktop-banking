@@ -2,6 +2,8 @@ package com.banking.services;
 
 import com.banking.models.AuthenticatedEmployee;
 import com.banking.models.BankingRequest;
+import com.banking.models.PostingResult;
+import com.banking.models.ApprovalTicket;
 import com.banking.models.TransactionReceipt;
 import com.banking.models.TransactionType;
 import com.banking.repositories.TransactionRepository;
@@ -33,6 +35,22 @@ public final class TransactionService {
         // Requests already posted must be retrievable even if policy subsequently changes.
         // The repository first checks this unique requestId atomically inside the transaction.
         return repository.post(actor.id(), request, policy.tellerLimitMinor());
+    }
+
+    /** Completion and approval submission are distinct outcomes; no misleading receipt. */
+    public PostingResult submit(AuthenticatedEmployee actor, BankingRequest request) {
+        Objects.requireNonNull(request, "request");
+        Permission permission = switch (request.type()) {
+            case CREDIT -> Permission.CREDIT;
+            case DEBIT -> Permission.DEBIT;
+            case TRANSFER -> Permission.TRANSFER;
+        };
+        access.require(actor, permission);
+        if (request.amountMinor() > policy.tellerLimitMinor()) {
+            ApprovalTicket pending = repository.submitForApproval(actor.id(), request, policy.tellerLimitMinor());
+            return PostingResult.pending(pending.approvalId());
+        }
+        return PostingResult.completed(repository.post(actor.id(), request, policy.tellerLimitMinor()));
     }
 
     public List<TransactionReceipt> history(AuthenticatedEmployee actor, String accountNumber,
