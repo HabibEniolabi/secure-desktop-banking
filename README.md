@@ -2,7 +2,7 @@
 
 **Educational simulation only — fictional customers and simulated funds.** Built against the supplied 21-page assignment (deadline **17 November 2026**).
 
-## Implemented modules: Foundation, employees, customers/accounts, financial transactions
+## Implemented source modules (live workflow verification pending)
 
 - Java 21 + JavaFX desktop window; asynchronous employee login screen and basic authenticated dashboard.
 - Maven build; MongoDB Atlas sync Java driver; reusable client; index initializer for the ten required collections.
@@ -11,7 +11,7 @@
 - Employee login audit records (success/failure), input validation and exact money parsing utilities.
 - JUnit tests, CI workflow, .gitignore, architecture/PR plan, and strict secret handling.
 
-**Still pending:** supervisor approvals, customer care, actual Gmail SMTP notifications, operational dashboards/reports and a full end-to-end test run. Do **not** mark the assignment complete on financial transactions alone. See `docs/PR4_DESCRIPTION.md`.
+**Implemented in source:** employee management, customers/accounts, credit/debit/transfer and history, restricted approvals, complaints, Gmail SMTP outbox worker, dashboard/reports and audit summaries. **Still pending:** final integrated Maven/Atlas/Gmail verification and screenshot evidence. See `docs/SUBMISSION_CHECKLIST.md`.
 
 ## Prerequisites
 
@@ -40,8 +40,8 @@ First-run seed exits if an admin with the seed email already exists. Use only th
 
 - The Financial transactions screen posts credit, debit and transfer requests asynchronously using MongoDB transactions.
 - The **request ID** remains unchanged if a database failure occurs. Keep it and retry with that same UUID; changing IDs can duplicate a financial operation.
-- Restricted transactions above `BANKING_TELLER_LIMIT_NGN` (default ₦1,000,000.00) are blocked until supervisor approval is implemented.
-- Transactions have ledger entries and audit records. Actual email delivery comes in a later PR.
+- Restricted transactions above `BANKING_TELLER_LIMIT_NGN` (default ₦1,000,000.00) enter the supervisor approval workflow; funds move only after a separate supervisor approves and the accounts/funds pass revalidation.
+- Transactions have ledger/audit entries and notification outbox records. The Gmail worker sends committed notices asynchronously when SMTP is configured.
 
 ## Design decisions
 
@@ -54,7 +54,7 @@ First-run seed exits if an admin with the seed email already exists. Use only th
 
 ## GitHub PR workflow
 
-Create an **empty private repository**, upload these files on `main`, and open feature branches as specified in `docs/PR_PLAN.md`. When a fresh repo link is available, the project can be committed and subsequent PRs opened through the connected GitHub account. Avoid putting this educational simulation in one of your unrelated repositories.
+Use a **private** repository containing only fictional data and code, and open feature branches against `main`. Merge PR #7 before PR #8. Do not commit `.env` or any actual Atlas/Gmail credentials.
 
 ## Verification
 
@@ -64,10 +64,23 @@ Run `mvn clean verify` (unit tests, compile and package) and `mvn javafx:run` lo
 
 Amounts exceeding `BANKING_TELLER_LIMIT_NGN` (default `1000000.00`) are queued for active supervisors rather than executed. Approval performs the financial update and approval decision in one MongoDB transaction; a failure leaves the approval pending. A rejected request never affects balances.
 
-Use two distinct seeded employees for demonstration: a `BANK_TELLER` and `SUPERVISOR`. Email notifications and complaints are separate upcoming modules.
+Use two distinct employee accounts for demonstration: a `BANK_TELLER` and `SUPERVISOR`. Email notifications and complaints are implemented in later modules.
 
 ## PR #6 — Customer Care
 
 Use **Customer care & complaints** from the dashboard as a Customer Care Officer or Supervisor.
-Ticket status changes write notification outbox records but do not yet send emails.
+Ticket status changes write notification outbox records. The Gmail background worker delivers them when configured.
 A MongoDB replica set/Atlas cluster supporting multi-document transactions is required.
+
+## PR #7 — Gmail SMTP notifications
+
+- Credit, debit, transfer and new-account operations write notification outbox records in the same MongoDB transaction as the financial/account change; Customer Care already queues ticket messages transactionally.
+- After login, a background worker delivers pending emails with Gmail STARTTLS, retry attempts and failure statuses without blocking JavaFX or undoing completed financial operations.
+- Set `SMTP_USERNAME` and `SMTP_APP_PASSWORD` in your **local** `.env` and load it into the shell before `mvn javafx:run`. A Gmail App Password (where available) is required; do not use your ordinary Gmail password.
+- Messages include references, transaction amounts, UTC dates and only the final four account digits. A Gmail acceptance/Atlas status-write race can cause a duplicate delivery; see `docs/PR7_DESCRIPTION.md` for testing and limitations.
+
+## FR-12 — Dashboard & Reports (PR #8)
+
+Administrators and Supervisors can open **Dashboard & reports** after signing in. The screen shows current customer/account/complaint/approval counts and, for an inclusive **UTC** start/end date, completed credit/debit/transfer totals and up to 30 recent transactions. Administrators can also view up to 30 bounded audit events. Financial aggregates run inside MongoDB; protected services recheck the active employee role, and UI queries use background threads. Internal transfers are reported separately rather than counted as new credits or cash withdrawals.
+
+The brief's short report is `docs/TECHNICAL_REPORT.md`; the deferred end-to-end scenarios and evidence checklist are `docs/SUBMISSION_CHECKLIST.md`. This is coursework simulation code; a successful login does not prove transaction/email workflows have been fully tested.

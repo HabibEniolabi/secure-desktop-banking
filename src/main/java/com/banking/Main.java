@@ -2,6 +2,9 @@ package com.banking;
 
 import com.banking.config.AppConfig;
 import com.banking.config.MongoContext;
+import com.banking.notifications.GmailConfig;
+import com.banking.notifications.GmailSmtpSender;
+import com.banking.notifications.NotificationWorker;
 import com.banking.models.AuthenticatedEmployee;
 import com.banking.repositories.EmployeeRepository;
 import com.banking.services.AuditService;
@@ -12,6 +15,7 @@ import com.banking.ui.CustomerAccountView;
 import com.banking.ui.TransactionView;
 import com.banking.ui.ApprovalView;
 import com.banking.ui.TicketView;
+import com.banking.ui.ReportView;
 import com.banking.models.Role;
 import com.banking.security.Authorization;
 import com.banking.security.Permission;
@@ -30,6 +34,7 @@ import javafx.stage.Stage;
 public final class Main extends Application {
     private Stage window;
     private MongoContext mongo;
+    private NotificationWorker notificationWorker;
 
     @Override public void start(Stage stage) {
         this.window = stage;
@@ -42,6 +47,7 @@ public final class Main extends Application {
     }
 
     private void showLogin() {
+        stopNotifications();
         Label title = new Label("Secure Banking");
         title.getStyleClass().add("page-title");
         Label subtitle = new Label("Employee sign-in · Educational simulation");
@@ -79,6 +85,7 @@ public final class Main extends Application {
             };
             task.setOnSucceeded(done -> {
                 password.clear();
+                startNotifications();
                 showDashboard(task.getValue());
             });
             task.setOnFailed(done -> {
@@ -142,8 +149,12 @@ public final class Main extends Application {
         customerCareButton.setVisible(Authorization.can(employee.role(), Permission.MANAGE_TICKETS));
         customerCareButton.setManaged(customerCareButton.isVisible());
         customerCareButton.setOnAction(e -> showCustomerCare(employee));
+        Button reportsButton = new Button("Dashboard & reports");
+        reportsButton.setVisible(Authorization.can(employee.role(), Permission.VIEW_REPORTS));
+        reportsButton.setManaged(reportsButton.isVisible());
+        reportsButton.setOnAction(e -> showReports(employee));
         VBox page = new VBox(18, top, role, new Separator(), content, employeesButton,
-            customerAccountsButton, transactionsButton, approvalsButton, customerCareButton);
+            customerAccountsButton, transactionsButton, approvalsButton, customerCareButton, reportsButton);
         page.setPadding(new Insets(34));
         page.getStyleClass().add("form-card");
         BorderPane root = new BorderPane(page);
@@ -153,7 +164,7 @@ public final class Main extends Application {
     }
 
     private void showCustomerAccounts(AuthenticatedEmployee actor) {
-        setScene(new CustomerAccountView(mongo.database(), actor, () -> showDashboard(actor)).build());
+        setScene(new CustomerAccountView(mongo.client(), mongo.database(), actor, () -> showDashboard(actor)).build());
     }
 
     private void showTransactions(AuthenticatedEmployee actor) {
@@ -162,6 +173,11 @@ public final class Main extends Application {
 
     private void showApprovals(AuthenticatedEmployee actor) {
         setScene(new ApprovalView(mongo.client(), mongo.database(), actor,
+            () -> showDashboard(actor)).build());
+    }
+
+    private void showReports(AuthenticatedEmployee actor) {
+        setScene(new ReportView(mongo.database(), actor,
             () -> showDashboard(actor)).build());
     }
 
@@ -280,7 +296,23 @@ public final class Main extends Application {
         window.setScene(scene);
     }
 
+    private void startNotifications() {
+        if (notificationWorker != null || mongo == null) return;
+        GmailConfig.fromEnvironment().ifPresent(config -> {
+            notificationWorker = new NotificationWorker(mongo.database(), new GmailSmtpSender(config));
+            notificationWorker.start();
+        });
+    }
+
+    private void stopNotifications() {
+        if (notificationWorker != null) {
+            notificationWorker.close();
+            notificationWorker = null;
+        }
+    }
+
     private void closeMongo() {
+        stopNotifications();
         if (mongo != null) { mongo.close(); mongo = null; }
     }
 
