@@ -33,6 +33,7 @@ public final class MongoContext implements AutoCloseable {
         unique("customers", "customerId");
         unique("customers", "email");
         unique("accounts", "accountNumber");
+        database.getCollection("accounts").createIndex(Indexes.ascending("status"));
         database.getCollection("accounts").createIndex(Indexes.ascending("customerId", "accountNumber"));
         database.getCollection("customers").createIndex(Indexes.ascending("fullName", "customerId"));
         unique("transactions", "reference");
@@ -46,10 +47,12 @@ public final class MongoContext implements AutoCloseable {
             Indexes.ascending("status", "nextAttemptAt", "createdAt"));
         database.getCollection("transactions").createIndex(Indexes.ascending("accountNumber", "createdAt"));
         database.getCollection("transactions").createIndex(Indexes.ascending("createdAt"));
+        database.getCollection("transactions").createIndex(Indexes.ascending("status", "createdAt"));
         database.getCollection("transactions").createIndex(Indexes.ascending("sourceAccountNumber", "createdAt"));
         database.getCollection("transactions").createIndex(Indexes.ascending("destinationAccountNumber", "createdAt"));
         database.getCollection("ledger_entries").createIndex(Indexes.ascending("reference", "createdAt"));
         database.getCollection("support_tickets").createIndex(Indexes.ascending("customerId", "status"));
+        database.getCollection("support_tickets").createIndex(Indexes.ascending("status"));
         database.getCollection("ticket_messages").createIndex(Indexes.ascending("ticketNumber", "createdAt"));
         database.getCollection("audit_logs").createIndex(Indexes.descending("createdAt"));
     }

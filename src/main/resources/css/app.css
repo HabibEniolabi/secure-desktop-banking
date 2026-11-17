@@ -12,3 +12,15 @@
 .text-field, .password-field { -fx-padding: 10; -fx-background-radius: 8; -fx-border-radius: 8; }
 .button { -fx-cursor: hand; -fx-padding: 10 20; -fx-background-radius: 8; }
 .button.primary { -fx-background-color: #126b49; -fx-text-fill: white; -fx-font-weight: bold; }
+
+/* Read-only operational dashboard metrics. */
+.stat-tile {
+    -fx-background-color: #f1f7f4;
+    -fx-background-radius: 12;
+    -fx-border-color: #dce9e2;
+    -fx-border-radius: 12;
+    -fx-padding: 17;
+    -fx-min-height: 78;
+}
+.stat-label { -fx-text-fill: #547164; -fx-font-size: 12px; }
+.stat-value { -fx-text-fill: #123d2c; -fx-font-size: 19px; -fx-font-weight: bold; }
