@@ -2,6 +2,9 @@ package com.banking;
 
 import com.banking.config.AppConfig;
 import com.banking.config.MongoContext;
+import com.banking.notifications.GmailConfig;
+import com.banking.notifications.GmailSmtpSender;
+import com.banking.notifications.NotificationWorker;
 import com.banking.models.AuthenticatedEmployee;
 import com.banking.repositories.EmployeeRepository;
 import com.banking.services.AuditService;
@@ -30,6 +33,7 @@ import javafx.stage.Stage;
 public final class Main extends Application {
     private Stage window;
     private MongoContext mongo;
+    private NotificationWorker notificationWorker;
 
     @Override public void start(Stage stage) {
         this.window = stage;
@@ -42,6 +46,7 @@ public final class Main extends Application {
     }
 
     private void showLogin() {
+        stopNotifications();
         Label title = new Label("Secure Banking");
         title.getStyleClass().add("page-title");
         Label subtitle = new Label("Employee sign-in · Educational simulation");
@@ -79,6 +84,7 @@ public final class Main extends Application {
             };
             task.setOnSucceeded(done -> {
                 password.clear();
+                startNotifications();
                 showDashboard(task.getValue());
             });
             task.setOnFailed(done -> {
@@ -153,7 +159,7 @@ public final class Main extends Application {
     }
 
     private void showCustomerAccounts(AuthenticatedEmployee actor) {
-        setScene(new CustomerAccountView(mongo.database(), actor, () -> showDashboard(actor)).build());
+        setScene(new CustomerAccountView(mongo.client(), mongo.database(), actor, () -> showDashboard(actor)).build());
     }
 
     private void showTransactions(AuthenticatedEmployee actor) {
@@ -280,7 +286,23 @@ public final class Main extends Application {
         window.setScene(scene);
     }
 
+    private void startNotifications() {
+        if (notificationWorker != null || mongo == null) return;
+        GmailConfig.fromEnvironment().ifPresent(config -> {
+            notificationWorker = new NotificationWorker(mongo.database(), new GmailSmtpSender(config));
+            notificationWorker.start();
+        });
+    }
+
+    private void stopNotifications() {
+        if (notificationWorker != null) {
+            notificationWorker.close();
+            notificationWorker = null;
+        }
+    }
+
     private void closeMongo() {
+        stopNotifications();
         if (mongo != null) { mongo.close(); mongo = null; }
     }
 
